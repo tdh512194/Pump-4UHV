@@ -4,6 +4,7 @@
 #include<QDebug>
 #include<QtMath>
 #include<QHash>
+#include <math.h>
 
 
 
@@ -43,12 +44,13 @@ class WindowCommand
     static  const TypADDR AddressBase = 0x80;
     static  const TypCOM COMRead = 0x30; //default
     static  const TypCOM COMWrite = 0x31;
-    static const quint8 CHANNEL1 = 0x31;
+    static  const quint8 CHANNEL1 = 0x31;
     static  const quint8 CHANNEL2 = 0x32;
     static  const quint8 CHANNEL3 = 0x33;
     static const quint8 CHANNEL4 = 0x34;
 
     static const TypDATA NumBase;
+    static const TypDATA ProtectBase;
 
     //Fixed Values of DATA Components and Bases correspond with WIN
       /* WIN HV ON/OFF */
@@ -56,7 +58,7 @@ class WindowCommand
     static  const quint8 ChannelON = 0x31;
     static  const quint8 ChannelOFF = 0x30; //default
 
-    static  const TypWIN ChannelBase;// = {0x30, 0x31}; //append CHANNEL1 - 4 for Channel 1 - 4
+    static  const TypWIN HVBase;// = {0x30, 0x31}; //append CHANNEL1 - 4 for Channel 1 - 4
 
      /* WIN Baud rate */
     static  const quint8 BaudRate1200 = 0x31;
@@ -108,9 +110,12 @@ class WindowCommand
     TypWIN mWIN;
     TypCOM mCOM;
     TypDATA &mDATA;
+    TypDATA &mDATAProtectSwitch;
     TypCRC mCRC;
     bool IsTemperature;
     bool IsHV;
+    bool IsProtected; //ProtectSwitch has been called
+    bool IsProtect;
 
 public:
     explicit WindowCommand(const quint8 WCNum);
@@ -121,16 +126,16 @@ public:
     static quint8 CountWC();
     static bool DeleteWC(const quint8 WCNum);
 
-    //quint8 GetWCNo() const;
-    //void SetWCNo(const quint8 WCNum);
+    quint8 GetWCNo() const;
+    void SetWCNo(const quint8 WCNum);
 
     //Get Message Components
-    //const TypMSG GetMSG() const;
-    //TypADDR GetADDR() const;
-    //TypWIN GetWIN() const;
-    //TypCOM GetCOM() const;
-    //const TypDATA GetDATA() const;
-    //TypCRC GetCRC() const;
+    const TypMSG GetMSG() const;
+    TypADDR GetADDR() const;
+    TypWIN GetWIN() const;
+    TypCOM GetCOM() const;
+    const TypDATA GetDATA() const;
+    TypCRC GetCRC() const;
 
     const TypCRC GenerateCRC(const QByteArray &data);
     const TypMSG GenerateMSG();
@@ -143,23 +148,24 @@ public:
 
     ///Functions
     //Complete Functions
-    WindowCommand &Raw(const QByteArray RawMSG);
+    WindowCommand &Raw(QByteArray RawMSG);
     WindowCommand &SetBaudRate(const int BaudRate);
-    //WindowCommand &ReadModel();
+    WindowCommand &ReadModel();
     WindowCommand &SelectSerialType(QByteArray Serial);
     //WindowCommand &ReadInterlock();
     WindowCommand &UnitPressure(QByteArray Pressure);
     WindowCommand &UnitPressure();
     WindowCommand &HVSwitch(const int Channel, QByteArray State);
-    WindowCommand &ReadModel();
     WindowCommand &ReadBaudRate();
+    WindowCommand &ProtectSwitch(const int Channel, QByteArray State);
+    WindowCommand &ProtectRead();
 
     //Incomplete Functions
     WindowCommand &HVSwitch();
     WindowCommand &On();
     WindowCommand &Off();
-    WindowCommand &SelectChannelError(); //Win 505, view in Win 206, to be appended
-    WindowCommand &ReadTemperature(); //to be appended
+    WindowCommand &SelectChannelError(const int Channel); //Win 505, view in Win 206, to be appended
+    WindowCommand &ReadT(); //to be appended
     WindowCommand &ReadV(); //to be appended
     WindowCommand &ReadI(); //to be appended
     WindowCommand &ReadP(); //to be appended
@@ -175,6 +181,13 @@ public:
 
     WindowCommand &Read();
     WindowCommand &Write();
+
+    //Translators
+    int ReadTemperature();
+    int ReadVoltage();
+    double ReadCurrent();
+    double ReadPressure();
+    int *ReadProtect();
 };
 
 #endif // WINDOWCOMMAND_H

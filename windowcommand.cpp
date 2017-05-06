@@ -33,10 +33,13 @@ QByteArray tmp = "00000";
 const WindowCommand::TypDATA WindowCommand::NumBase = tmp;
 
 QByteArray tmp4 = "01";
-const WindowCommand::TypWIN WindowCommand::ChannelBase = tmp4;
+const WindowCommand::TypWIN WindowCommand::HVBase = tmp4;
 
 QByteArray tmp10 = "80";
 const WindowCommand::TypWIN WindowCommand::TemperatureBase = tmp10;
+
+QByteArray tmp11 = "0000000000";
+const WindowCommand::TypDATA WindowCommand::ProtectBase = tmp11;
 
 
 
@@ -46,11 +49,14 @@ WindowCommand::WindowCommand(const quint8 WCNum)
     ,mWIN("000")
     ,mCOM(COMRead)
     ,mDATA(* new TypDATA())
+    ,mDATAProtectSwitch(* new TypDATA())
     ,mCRC("00")
     ,mMSG(*new TypMSG())
     ,IsTemperature(false)
     ,IsHV(false)
     ,mCHANNEL(5) //no Channel is set
+    ,IsProtected(false)
+    ,IsProtect(false)
 {
     if (WindowCommand::WCObjSet.contains(WCNum))   //If There's An Object With That BPNum, Then Throw Exception
         throw std::invalid_argument(std::string("Pump #")+std::to_string(WCNum)+std::string(" Has Already Existed !!!"));
@@ -88,7 +94,7 @@ WindowCommand &WindowCommand::WC(const TypMSG &QBArr)
     WCTmp.mCRC = QBArr.right(tmp2 - SzCRC);
     tmp2 -= tmp1 + SzCRC + sizeof(ETX); //data length
     WCTmp.mDATA = QBArr.mid(tmp1,tmp2);
-
+    qDebug() << "<<STX: " << STX << " ADDR: " << WCTmp.mADDR << " WIN: " << WCTmp.mWIN.toHex() << " COM: " << WCTmp.mCOM << " DATA: " << WCTmp.mDATA.toHex() << " ETX: " << ETX << " CRC: " << WCTmp.mCRC << endl;
     WCTmp.mMSG.clear();
     WCTmp.mMSG << STX << WCTmp.mADDR << WCTmp.mWIN << WCTmp.mCOM << WCTmp.mDATA << ETX <<WCTmp.mCRC;
     return WCTmp;
@@ -116,45 +122,61 @@ bool WindowCommand::DeleteWC(const quint8 WCNum)
         return false;
 }
 
-/*quint8 WindowCommand::GetWCNo() const
+quint8 WindowCommand::GetWCNo() const
 {
-
+    return mWCNo;
 }
 
 void WindowCommand::SetWCNo(const quint8 WCNum)
 {
+    if(WindowCommand::WCObjSet.contains(WCNum))
+        throw std::invalid_argument(std::string("Pump #")+std::to_string(WCNum)+std::string("Has Already Existed !!!"));
+    else
+    {
+        WindowCommand::WCObjSet.remove(mWCNo);
+        mWCNo = WCNum;
+        mADDR = AddressBase + WCNum;
+        mWIN = "000";
+        mCOM = COMRead;
+        mDATA.clear();
+        mCRC = "00";
+        mMSG.clear();
+        IsTemperature = false;
+        IsHV = false;
+        mCHANNEL = 5; //no Channel is set
 
+    }
 }
 
 const WindowCommand::TypMSG WindowCommand::GetMSG() const
 {
-
+    return mMSG;
 }
 
 WindowCommand::TypADDR WindowCommand::GetADDR() const
 {
-
+    return mADDR;
 }
 
 WindowCommand::TypWIN WindowCommand::GetWIN() const
 {
-
+    return mWIN;
 }
 
 WindowCommand::TypCOM WindowCommand::GetCOM() const
 {
-
+    return mCOM;
 }
 
 const WindowCommand::TypDATA WindowCommand::GetDATA() const
 {
-
+    return mDATA;
 }
 
 WindowCommand::TypCRC WindowCommand::GetCRC() const
 {
-
-}*/
+    return mCRC;
+}
 
 const WindowCommand::TypCRC WindowCommand::GenerateCRC(const QByteArray &data)
 {
@@ -180,9 +202,7 @@ const WindowCommand::TypCRC WindowCommand::GenerateCRC(const QByteArray &data)
 const WindowCommand::TypMSG WindowCommand::GenerateMSG()
 {
     // <STX> + <ADDR> + <WIN> + <COM> + <DATA> + <ETX>
-    //reset the flags
-    IsTemperature = false;
-    IsHV = false;
+
 
     mMSG.clear();
     mMSG << STX << mADDR << mWIN << mCOM << mDATA << ETX;
@@ -191,6 +211,14 @@ const WindowCommand::TypMSG WindowCommand::GenerateMSG()
 
     //connect the checksum at the end of the data string
     mMSG << mCRC;
+    qDebug() << ">>STX: " << STX << " ADDR: " << mADDR << " WIN: " << mWIN.toHex() << " COM: " << mCOM << " DATA: " << mDATA.toHex() << " ETX: " << ETX << " CRC: " << mCRC << endl;
+    //reset the flags and values
+    IsTemperature = false;
+    IsHV = false;
+    IsProtect = false;
+    mWIN.clear();
+    mWIN = "000";
+    mDATA.clear();
 
     return mMSG;
 }
@@ -216,8 +244,10 @@ const QString WindowCommand::GetMessage() const
 }*/
 
 //Complete Functions
-WindowCommand &WindowCommand::Raw(const QByteArray RawMSG)
+WindowCommand &WindowCommand::Raw(QByteArray RawMSG)
 {
+    QByteArray data;
+    data = data.fromHex(RawMSG);
     //<ADDR> + <WIN> + <COM> + <DATA>
     WindowCommand::TypADDR WCAddress = *RawMSG.left(SzADDR);
 
@@ -230,7 +260,7 @@ WindowCommand &WindowCommand::Raw(const QByteArray RawMSG)
     WCTmp.mCOM = *RawMSG.mid(tmp1,SzCOM);
     tmp1 += SzCOM;
     WCTmp.mDATA = RawMSG.right(tmp1 + 1);
-    QByteArray data;
+    //QByteArray data;
     return WCTmp;
 }
 
@@ -266,10 +296,13 @@ WindowCommand &WindowCommand::SetBaudRate(const int BaudRate)
     return *this;
 }
 
-/*WindowCommand &WindowCommand::ReadModel()
+WindowCommand &WindowCommand::ReadModel()
 {
+    mWIN = "319";
+    mCOM = COMRead;
 
-}*/
+    return *this;
+}
 
 WindowCommand &WindowCommand::SelectSerialType(QByteArray Serial)
 {
@@ -326,13 +359,6 @@ WindowCommand &WindowCommand::UnitPressure()
     return *this;
 }
 
-WindowCommand &WindowCommand::ReadModel()
-{
-    mWIN = "319";
-    mCOM = COMRead;
-
-    return *this;
-}
 
 WindowCommand &WindowCommand::ReadBaudRate()
 {
@@ -341,6 +367,62 @@ WindowCommand &WindowCommand::ReadBaudRate()
 
     return *this;
 }
+
+WindowCommand &WindowCommand::ProtectSwitch(const int Channel, QByteArray State)
+{
+    mWIN.clear();
+    mWIN = "602";
+    mCOM = COMWrite;
+    IsProtect = true;
+
+    if(!IsProtected)
+    {
+        IsProtected = true;
+        //initialized the DATA
+        mDATAProtectSwitch = ProtectBase;
+    }
+
+    quint8 tmpState;
+    State = State.toUpper();
+    if (State == "ON")
+    {
+        tmpState = ChannelON;
+    }
+    else if (State == "OFF")
+    {
+        tmpState = ChannelOFF;
+    }
+
+    switch (Channel){
+    case 1:
+        mDATAProtectSwitch[9] = tmpState;
+        break;
+    case 2:
+        mDATAProtectSwitch[8] = tmpState;
+        break;
+    case 3:
+        mDATAProtectSwitch[7] = tmpState;
+        break;
+    case 4:
+        mDATAProtectSwitch[6] = tmpState;
+        break;
+    }
+
+    mDATA.clear();
+    mDATA << mDATAProtectSwitch;
+
+    return *this;
+}
+
+WindowCommand &WindowCommand::ProtectRead()
+{
+    mWIN = "602";
+    mCOM = COMRead;
+    mDATA.clear();
+
+    return *this;
+}
+
 
 WindowCommand &WindowCommand::HVSwitch(const int Channel, QByteArray State)
 {
@@ -377,7 +459,7 @@ WindowCommand &WindowCommand::HVSwitch(const int Channel, QByteArray State)
         mCOM = COMRead;
     }
 
-    mWIN << ChannelBase << mCHANNEL;
+    mWIN << HVBase << mCHANNEL;
 
     return *this;
 }
@@ -385,7 +467,7 @@ WindowCommand &WindowCommand::HVSwitch(const int Channel, QByteArray State)
 WindowCommand &WindowCommand::HVSwitch()
 {
     IsHV = true;
-    mWIN = ChannelBase;
+    mWIN = HVBase;
     if (mCHANNEL != 5) //already set Channel
         mWIN[2] = mCHANNEL;
 
@@ -394,23 +476,46 @@ WindowCommand &WindowCommand::HVSwitch()
 
 WindowCommand &WindowCommand::On()
 {
+    mDATA.clear();
     mDATA[0] = ChannelON;
     mCOM = COMWrite;
     return *this;
 }
 WindowCommand &WindowCommand::Off()
 {
+    mDATA.clear();
     mDATA[0] = ChannelOFF;
     mCOM = COMWrite;
     return *this;
 }
 
-/*WindowCommand &WindowCommand::SelectChannelError() //Win 505, view in Win 206, to be appended
+WindowCommand &WindowCommand::SelectChannelError(const int Channel) //Win 505, view in Win 206, to be appended
 {
+    mWIN.clear();
+    mWIN = "505";
+    mCOM = COMWrite;
+    mDATA = NumBase;
 
-}*/
+    switch(Channel){
+    case 1:
+        mDATA << CHANNEL1;
+        break;
+    case 2:
+        mDATA << CHANNEL2;
+        break;
+    case 3:
+        mDATA << CHANNEL3;
+        break;
+    case 4:
+        mDATA << CHANNEL4;
+        break;
+    }
 
-WindowCommand &WindowCommand::ReadTemperature() //to be appended
+
+    return *this;
+}
+
+WindowCommand &WindowCommand::ReadT() //to be appended
 {
     IsTemperature = true; //set the flag
     //in case the channel is set before calling and fall into non-Temperature case
@@ -418,6 +523,7 @@ WindowCommand &WindowCommand::ReadTemperature() //to be appended
     mWIN = TemperatureBase;
     switch(mCHANNEL){
     case 0x30: //Fan case
+        mWIN = TemperatureBase;
         mWIN[2] = mCHANNEL;
     case 0x31:
         mWIN = TemperatureBase;
@@ -451,6 +557,7 @@ WindowCommand &WindowCommand::ReadV() //to be appended
     mWIN[1] = mCHANNEL; // = 5 if not set channel
     mWIN[2] = MeasuredV;
     mCOM = COMRead;
+    mDATA.clear();
 
     return *this;
 }
@@ -461,6 +568,7 @@ WindowCommand &WindowCommand::ReadI() //to be appended
     mWIN[1] = mCHANNEL; // = 5 if not set channel
     mWIN[2] = MeasuredI;
     mCOM = COMRead;
+    mDATA.clear();
 
     return *this;
 }
@@ -471,6 +579,7 @@ WindowCommand &WindowCommand::ReadP() //to be appended
     mWIN[1] = mCHANNEL; // = 5 if not set channel
     mWIN[2] = MeasuredP;
     mCOM = COMRead;
+    mDATA.clear();
 
     return *this;
 }
@@ -526,7 +635,7 @@ WindowCommand &WindowCommand::SetChannel(QByteArray Channel) //accepts Fan
     Channel = Channel.toUpper();
     if( Channel == "FAN")
     {
-        mCHANNEL = FAN;
+        mCHANNEL = 0x30;
         mWIN[2] = mCHANNEL;
         mCOM = COMRead;
     }
@@ -605,10 +714,11 @@ WindowCommand &WindowCommand::Fan()
     {
         mCHANNEL = FAN;
         mWIN[2] = mCHANNEL;
-        return *this;
+
     }
     else
         throw std::invalid_argument(std::string("Cannot read from Fan!!"));
+    return *this;
 }
 
 WindowCommand &WindowCommand::Read()
@@ -621,6 +731,76 @@ WindowCommand &WindowCommand::Write()
 {
     mCOM = COMWrite;
     return *this;
+}
+
+int WindowCommand::ReadTemperature()
+{
+   int b, c ,d;
+   b = mDATA[7] - '0';
+   c = mDATA[8] - '0';
+   d = mDATA[9] - '0';
+   int result = b*100 + c*10 + d;
+
+   return result;
+}
+
+int WindowCommand::ReadVoltage()
+{
+    int b, c, d, e;
+    b = mDATA[6] - '0';
+    c = mDATA[7] - '0';
+    d = mDATA[8] - '0';
+    e = mDATA[9] - '0';
+    int result = b*1000 + c*100 + d*10 + e;
+
+    return result;
+}
+
+double WindowCommand::ReadCurrent()
+{
+    //bE-cd
+    int b;
+    int c;
+    int d;
+    double result;
+    b = mDATA[5] - '0';
+    c = mDATA[8] - '0';
+    d = mDATA[9] - '0';
+
+    result = b*pow(10,-(c*10 + d));
+
+    return result;
+}
+
+double WindowCommand::ReadPressure()
+{
+    //b.cE-de
+    int b,c,d,e;
+    double result;
+    b = mDATA[3] - '0';
+    c = mDATA[5] - '0';
+    d = mDATA[8] - '0';
+    e = mDATA[9] - '0';
+
+    result = (b + c*0.1)*pow(10,-(d*10 + e));
+
+    return result;
+}
+
+int *WindowCommand::ReadProtect()
+{
+    static int protect[4];
+    for (int i= 0; i < 4; i++)
+    {
+        int j = 0;
+        if (mDATAProtectSwitch[9-i] == '1')
+        {
+            protect[j] = i+1;
+            j++;
+        }
+    }
+
+    return protect;
 }
 
 QHash<const quint8, WindowCommand *> &WindowCommand::WCObjSet = * new QHash<const quint8, WindowCommand *>();

@@ -5,11 +5,7 @@
 
 int main(int argc, char *argv[])
 {
-    WindowCommand test(0);
-    QByteArray mess;
-    mess = test.ReadP().SetChannel(1).GenerateMSG();
 
-    qDebug() << mess.toHex();
 
 
     QApplication a(argc, argv);

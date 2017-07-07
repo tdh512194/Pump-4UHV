@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include "serialinterface.h"
+#include <windowcommand.h>
 
 
 
@@ -14,6 +15,7 @@ class MainWindow : public QMainWindow
 {
     Q_OBJECT
     SerialInterface *NowSI;
+    WindowCommand *pump;
 
 public:
     explicit MainWindow(QWidget *parent = 0);
@@ -24,6 +26,16 @@ private slots:
     void on_pushButton_clicked();
     //declaration for reading
     void serialport_read();
+
+    void on_pushButton_2_clicked();
+
+    void on_pushButton_3_clicked();
+
+    void on_pushButton_4_clicked();
+
+    void on_pushButton_5_clicked();
+
+    void on_pushButton_6_clicked();
 
 private:
     Ui::MainWindow *ui;

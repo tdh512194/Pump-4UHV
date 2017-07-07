@@ -4,10 +4,12 @@
 
 
 
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow),
-    NowSI(new SerialInterface("COM8"))
+    NowSI(new SerialInterface("COM2")),
+    pump(new WindowCommand(1))
 {
     ui->setupUi(this);
     //connect parameter is address hence the '&'
@@ -43,17 +45,87 @@ void CRCchecksum(QByteArray &data)
 
 void MainWindow::on_pushButton_clicked()
 {
+    ui->lineEdit->clear();
+    ui->plainTextEdit->clear();
     QByteArray data;
-    data = data.QByteArray::fromHex(ui->lineEdit->text().toStdString().data());
-    CRCchecksum(data);
+    //data = data.QByteArray::fromHex(ui->lineEdit->text().toStdString().data());
+    data = pump->HVSwitch(3, "ON").GenerateMSG();
+    //CRCchecksum(data);
     NowSI->simpleWriteNow(data);
+
+    ui->lineEdit->insert(data.toHex());
 
 
 }
 
+void MainWindow::on_pushButton_2_clicked()
+{
+    ui->lineEdit->clear();
+    ui->plainTextEdit->clear();
+    QByteArray data;
+    //data = data.QByteArray::fromHex(ui->lineEdit->text().toStdString().data());
+    data = pump->HVSwitch().Channel1().Read().GenerateMSG();
+    //CRCchecksum(data);
+    NowSI->simpleWriteNow(data);
+
+    ui->lineEdit->insert(data.toHex());
+}
+
+void MainWindow::on_pushButton_3_clicked()
+{
+    ui->lineEdit->clear();
+    ui->plainTextEdit->clear();
+    QByteArray data;
+    //data = data.QByteArray::fromHex(ui->lineEdit->text().toStdString().data());
+    data = pump->ProtectSwitch(1,"ON").GenerateMSG();
+    //CRCchecksum(data);
+    NowSI->simpleWriteNow(data);
+
+    ui->lineEdit->insert(data.toHex());
+}
+
+void MainWindow::on_pushButton_4_clicked()
+{
+    ui->lineEdit->clear();
+    ui->plainTextEdit->clear();
+    QByteArray data;
+    //data = data.QByteArray::fromHex(ui->lineEdit->text().toStdString().data());
+    data = pump->ReadI().GenerateMSG();
+    //CRCchecksum(data);
+    NowSI->simpleWriteNow(data);
+
+    ui->lineEdit->insert(data.toHex());
+}
+
+void MainWindow::on_pushButton_5_clicked()
+{
+    ui->lineEdit->clear();
+    ui->plainTextEdit->clear();
+    QByteArray data;
+    //data = data.QByteArray::fromHex(ui->lineEdit->text().toStdString().data());
+    data = pump->Channel4().ReadV().GenerateMSG();
+    //CRCchecksum(data);
+    NowSI->simpleWriteNow(data);
+
+    ui->lineEdit->insert(data.toHex());
+}
+
+void MainWindow::on_pushButton_6_clicked()
+{
+    ui->lineEdit->clear();
+    ui->plainTextEdit->clear();
+    QByteArray data;
+    //data = data.QByteArray::fromHex(ui->lineEdit->text().toStdString().data());
+    data = pump->ReadP().GenerateMSG();
+    //CRCchecksum(data);
+    NowSI->simpleWriteNow(data);
+    ui->lineEdit->insert(data);
+}
+
 void MainWindow::serialport_read()
 {
-    ui->plainTextEdit->moveCursor(QTextCursor::End);
+    //ui->plainTextEdit->moveCursor(QTextCursor::End);
+
     QByteArray a = NowSI->mSerialPort.readAll();
-    ui->plainTextEdit->insertPlainText(a.toHex());
+    ui->plainTextEdit->insertPlainText(a);
 }

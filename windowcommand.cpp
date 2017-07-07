@@ -98,7 +98,6 @@ WindowCommand &WindowCommand::WC(const TypMSG &QBArr)
     WCTmp.mMSG.clear();
     WCTmp.mMSG << STX << WCTmp.mADDR << WCTmp.mWIN << WCTmp.mCOM << WCTmp.mDATA << ETX <<WCTmp.mCRC;
     return WCTmp;
-
 }
 
 bool WindowCommand::IsWC(const quint8 WCNum)

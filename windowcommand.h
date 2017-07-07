@@ -188,6 +188,7 @@ public:
     double ReadCurrent();
     double ReadPressure();
     int *ReadProtect();
+
 };
 
 #endif // WINDOWCOMMAND_H
